@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use serde::{Serialize,Deserialize};
 
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Debug)]
 pub struct Request {
     pub method: String,
     pub host: String,
