@@ -35,7 +35,7 @@ static SESSION_LIFETIME_MIN: i64 = 300;
 #[derive(Serialize)]
 pub struct Resp {
 	pub code: u16,
-	pub text: String,
+	pub body: Vec<u8>,
 	pub content_type: String,
 	pub session_id: Option<String>, // None - no cookie, "" - delete cookie
 }
@@ -44,12 +44,12 @@ impl Resp {
 	pub fn ok(text: &str) -> Resp {
 		Self {
 			code: 200,
-			text: text.to_string(),
+			body: text.to_string().as_bytes().to_vec(),
 			content_type: "text/html".to_string(),
 			session_id: None,
 		}
 	}
-	pub fn get_resp(&self) -> String {
+	pub fn get_resp_bytes(&self) -> Vec<u8> {
 		let cookie_line = match &self.session_id {
 			None => "".to_string(),
 			Some(v) => {
@@ -64,16 +64,22 @@ impl Resp {
 					Expires={expires}")
 			}
 		};
+		let body: Vec<u8> = self.body.clone();
 		let mut r = format!(
 			"HTTP/1.1 {}\r\n\
 			Content-Length: {}\r\n\
 			Content-Type: {}\r\n",
-			self.code, self.text.len(), self.content_type
+			self.code, body.len(), self.content_type
 		);
 		if cookie_line != "" {
 			r = format!("{r}{cookie_line}\r\n");
 		}
-		format!("{r}\r\n{}", self.text)
+		let r = format!("{r}\r\n");
+		let mut full_response: Vec<u8> = vec![];
+		full_response.extend_from_slice(r.as_bytes());
+		full_response.extend_from_slice(&body);
+		full_response.extend_from_slice("\r\n".to_string().as_bytes());
+		full_response
 	}
 	pub fn check_auth(&self) {
 	}
@@ -112,7 +118,6 @@ impl JsonResp {
 		}
 	}
 	pub fn j_err<E: Display>(msg: &E) -> JsonResp {
-		println!("NU ERR: {}", msg.to_string());
 		Self {
 			ok: false,
 			code: 400,
@@ -152,7 +157,7 @@ impl JsonResp {
 pub fn text_resp(code: u16, text: String) -> Resp {
 	Resp {
 		code: code,
-		text: text,
+		body: text.as_bytes().to_vec(),
 		content_type: "text/html".to_string(),
 		session_id: None,
 	}
@@ -161,7 +166,7 @@ pub fn text_resp(code: u16, text: String) -> Resp {
 pub fn json_resp(code: u16, text: String) -> Resp {
 	Resp {
 		code: code,
-		text: text,
+		body: text.as_bytes().to_vec(),
 		content_type: "application/json".to_string(),
 		session_id: None,
 	}
@@ -170,7 +175,7 @@ pub fn json_resp(code: u16, text: String) -> Resp {
 pub fn json_resp_with_session(code: u16, text: String, session_id: Option<String>) -> Resp {
 	Resp {
 		code: code,
-		text: text,
+		body: text.as_bytes().to_vec(),
 		content_type: "application/json".to_string(),
 		session_id: session_id,
 	}
@@ -179,16 +184,27 @@ pub fn json_resp_with_session(code: u16, text: String, session_id: Option<String
 pub fn code_resp(code: u16) -> Resp {
 	Resp {
 		code: code,
-		text: "".to_string(),
+		body: "".to_string().as_bytes().to_vec(),
 		content_type: "text/html".to_string(),
 		session_id: None,
 	}
 }
 
+
+pub fn tile_resp(tile: Vec<u8>) -> Resp {
+	Resp {
+		code: 200,
+		body: tile,
+		content_type: "application/x-protobuf".to_string(),
+		session_id: None,
+	}
+}
+
+
 pub fn session_resp(code: u16, session_id: Option<String>) -> Resp {
 	Resp {
 		code: code,
-		text: "{}".to_string(), // return empty JSON because apiGet/apiPost wants it
+		body: "{}".to_string().as_bytes().to_vec(), // return empty JSON because apiGet/apiPost wants it
 		content_type: "text/html".to_string(),
 		session_id: session_id,
 	}
