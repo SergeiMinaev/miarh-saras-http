@@ -30,7 +30,7 @@ impl Request {
 
 
 
-static SESSION_LIFETIME_MIN: i64 = 300;
+static SESSION_LIFETIME_MIN: i64 = 20160;
 
 #[derive(Serialize)]
 pub struct Resp {
