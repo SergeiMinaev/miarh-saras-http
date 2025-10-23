@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use chrono::{Duration, Utc};
 use serde::{Serialize,Deserialize};
+use serde_json::Value;
 
 
 #[derive(Serialize,Deserialize,Debug)]
@@ -88,12 +89,23 @@ impl Resp {
 	}
 }
 
+#[derive(Serialize, Debug, Clone)]
+pub struct Pagination {
+	pub page: u64,
+	pub per_page: u64,
+	pub total: Option<u64>,
+	pub total_pages: Option<u64>,
+	pub next_page: Option<u64>,
+	pub prev_page: Option<u64>,
+}
+
 pub struct JsonResp {
 	pub ok: bool,
 	pub code: u16,
 	pub err: String,
 	pub msg: String,
-	pub data: String,
+	pub data: Value,
+	pub pagination: Option<Pagination>,
 	pub session_id: Option<String>,
 }
 impl JsonResp {
@@ -103,7 +115,8 @@ impl JsonResp {
 			code: 200,
 			msg: msg.to_string(),
 			err: String::default(),
-			data: "{}".to_string(),
+			data: serde_json::json!({}),
+			pagination: None,
 			session_id: None,
 		}
 	}
@@ -113,7 +126,8 @@ impl JsonResp {
 			code: 400,
 			err: err.to_string(),
 			msg: msg.to_string(),
-			data: "{}".to_string(),
+			data: serde_json::json!({}),
+			pagination: None,
 			session_id: None,
 		}
 	}
@@ -123,7 +137,8 @@ impl JsonResp {
 			code: 400,
 			err: String::default(),
 			msg: msg.to_string(),
-			data: "{}".to_string(),
+			data: serde_json::json!({}),
+			pagination: None,
 			session_id: None,
 		}
 	}
@@ -132,23 +147,38 @@ impl JsonResp {
 		self
 	}
 	pub fn content<T>(&mut self, content: &T) -> &mut JsonResp where T: Serialize {
-		self.data = serde_json::to_string(&content).unwrap();
+		self.data = serde_json::to_value(content).unwrap();
 		self
 	}
 	pub fn string_content(&mut self, content: &str) -> &mut JsonResp {
-		self.data = content.to_string();
+		self.data = Value::String(content.to_string());
 		self
 	}
 	pub fn session_id(&mut self, session_id: String) -> &mut JsonResp {
 		self.session_id = Some(session_id);
 		self
 	}
+	pub fn pagination(&mut self, pagination: Pagination) -> &mut JsonResp {
+		self.pagination = Some(pagination);
+		self
+	}
 	pub fn to_http(&mut self) -> Resp {
-		let data = format!(r#"{{"ok": {}, "err": "{}", "msg": "{}", "data": {} }}"#, self.ok, self.err, self.msg, self.data);
+		let mut obj = serde_json::json!({
+			"ok": self.ok,
+			"err": self.err,
+			"msg": self.msg,
+			"data": self.data,
+		});
+		if let Some(p) = &self.pagination {
+			if let serde_json::Value::Object(ref mut map) = obj {
+				map.insert("pagination".to_string(), serde_json::to_value(p).unwrap());
+			}
+		}
+		let data = serde_json::to_string(&obj).unwrap();
 		if self.session_id.is_some() {
-		  json_resp_with_session(self.code, data, self.session_id.clone())
+			json_resp_with_session(self.code, data, self.session_id.clone())
 		} else {
-		  json_resp(self.code, data)
+			json_resp(self.code, data)
 		}
 	}
 }
