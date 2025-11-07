@@ -248,5 +248,5 @@ pub fn forbidden() -> Resp {
 }
 
 pub fn not_found() -> Resp {
-	text_resp(404, "Not Found".to_string())
+	text_resp(404, r#"{"ok": false, "msg": "Not Found"}"#.to_string())
 }
