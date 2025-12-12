@@ -15,6 +15,8 @@ pub struct Request {
 	pub body_string: String,
 	pub route: HashMap<String, String>,
 	pub files: HashMap<String, RequestFile>,
+	#[serde(default)]
+	pub headers: HashMap<String, String>,
 }
 
 #[derive(Serialize,Deserialize,Debug,Clone)]
