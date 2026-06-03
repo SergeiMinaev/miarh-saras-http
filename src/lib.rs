@@ -81,7 +81,6 @@ impl Resp {
 		let mut full_response: Vec<u8> = vec![];
 		full_response.extend_from_slice(r.as_bytes());
 		full_response.extend_from_slice(&body);
-		full_response.extend_from_slice("\r\n".to_string().as_bytes());
 		full_response
 	}
 	pub fn check_auth(&self) {
