@@ -77,6 +77,11 @@ impl Resp {
 		if cookie_line != "" {
 			r = format!("{r}{cookie_line}\r\n");
 		}
+		// An HTML document names the versioned assets a client loads, so a cached copy
+		// keeps that client on a past release. Allow storing it, but require validation.
+		if self.content_type.starts_with("text/html") {
+			r = format!("{r}Cache-Control: no-cache\r\n");
+		}
 		let r = format!("{r}\r\n");
 		let mut full_response: Vec<u8> = vec![];
 		full_response.extend_from_slice(r.as_bytes());
@@ -250,4 +255,36 @@ pub fn forbidden() -> Resp {
 
 pub fn not_found() -> Resp {
 	text_resp(404, r#"{"ok": false, "msg": "Not Found"}"#.to_string())
+}
+
+#[cfg(test)]
+mod resp_tests {
+	use super::*;
+
+	fn header_block(resp: &Resp) -> String {
+		let bytes = resp.get_resp_bytes();
+		let text = String::from_utf8_lossy(&bytes).to_string();
+		text.split("\r\n\r\n").next().unwrap_or_default().to_string()
+	}
+
+	#[test]
+	fn html_response_forbids_silent_cache_reuse() {
+		let resp = Resp::ok("<html></html>");
+		assert!(resp.content_type.starts_with("text/html"), "expected html by default");
+		assert!(
+			header_block(&resp).contains("Cache-Control: no-cache"),
+			"missing cache header: {}",
+			header_block(&resp)
+		);
+	}
+
+	#[test]
+	fn non_html_response_is_untouched() {
+		let mut resp = Resp::ok("{}");
+		resp.content_type = "application/json".to_string();
+		assert!(
+			!header_block(&resp).contains("Cache-Control"),
+			"api responses must not carry a cache header"
+		);
+	}
 }
